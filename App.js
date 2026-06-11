@@ -271,3 +271,120 @@ const styles = StyleSheet.create({
   cardNome: { fontSize: 15, fontWeight: '600', color: '#1c2833' },
   cardQtd: { fontSize: 13, color: '#7f8c8d', marginTop: 2 },
 });
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet, Text, View, SafeAreaView, StatusBar, TextInput, 
+  TouchableOpacity, KeyboardAvoidingView, Platform, Alert, 
+  ActivityIndicator, FlatList
+} from 'react-native';
+
+const API_URL = 'https://6a2b3540b687a7d5cbc4f2f8.mockapi.io/api/v1/Materias';
+
+export default function App() {
+  const [materiais, setMateriais] = useState([]);
+  const [form, setForm] = useState({ nome: '', quantidade: '' });
+  const [loading, setLoading] = useState({ list: false, add: false });
+
+  const fetchMateriais = async () => {
+    setLoading(prev => ({ ...prev, list: true }));
+    try {
+      const response = await fetch(API_URL);
+      setMateriais(await response.json());
+    } catch (e) {
+      Alert.alert('Erro', 'Falha ao carregar dados.');
+    } finally {
+      setLoading(prev => ({ ...prev, list: false }));
+    }
+  };
+
+  useEffect(() => { fetchMateriais(); }, []);
+
+  const cadastrar = async () => {
+    const { nome, quantidade } = form;
+    if (!nome.trim() || !quantidade.trim()) return Alert.alert('Atenção', 'Preencha todos os campos.');
+    
+    setLoading(prev => ({ ...prev, add: true }));
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nome.trim(), quantidade: Number(quantidade) }),
+      });
+      const novo = await response.json();
+      setMateriais([novo, ...materiais]);
+      setForm({ nome: '', quantidade: '' });
+    } catch (e) {
+      Alert.alert('Erro', 'Falha ao cadastrar.');
+    } finally {
+      setLoading(prev => ({ ...prev, add: false }));
+    }
+  };
+
+  const Card = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.cardIcon}><Text>📦</Text></View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.cardNome}>{item.nome}</Text>
+        <Text style={styles.cardQtd}>Qtd: {item.quantidade}</Text>
+      </View>
+      <View style={[styles.badge, { backgroundColor: item.quantidade > 10 ? '#eafaf1' : '#fdf2f8' }]}>
+        <Text style={styles.badgeText}>{item.quantidade > 10 ? 'OK' : 'BAIXO'}</Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a5276" />
+      <KeyboardAvoidingView flex={1} behavior={Platform.OS === 'ios' ? 'padding' : null}>
+        <View style={styles.header}>
+          <Text style={styles.title}>🏥 Almoxarifado</Text>
+          <Text style={styles.subtitle}>Controle de Insumos</Text>
+        </View>
+
+        <View style={styles.form}>
+          <TextInput style={styles.input} placeholder="Nome" value={form.nome} onChangeText={t => setForm({...form, nome: t})} />
+          <TextInput style={styles.input} placeholder="Qtd" value={form.quantidade} onChangeText={t => setForm({...form, quantidade: t})} keyboardType="numeric" />
+          <TouchableOpacity style={styles.btn} onPress={cadastrar} disabled={loading.add}>
+            {loading.add ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Cadastrar</Text>}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.listHeader}>
+          <Text style={styles.sectionTitle}>Inventário</Text>
+          <TouchableOpacity onPress={fetchMateriais}><Text style={{color: '#aed6f1'}}>↻ Atualizar</Text></TouchableOpacity>
+        </View>
+
+        {loading.list ? <ActivityIndicator size="large" color="#fff" style={{marginTop: 20}} /> :
+          <FlatList
+            data={materiais}
+            keyExtractor={item => item.id.toString()}
+            renderItem={Card}
+            contentContainerStyle={{ padding: 16 }}
+            ListEmptyComponent={<Text style={styles.empty}>Nenhum material encontrado.</Text>}
+          />
+        }
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#1a5276' },
+  header: { padding: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
+  subtitle: { color: '#aed6f1' },
+  form: { backgroundColor: '#fff', margin: 16, padding: 16, borderRadius: 12, elevation: 4 },
+  input: { borderBottomWidth: 1, borderColor: '#eee', padding: 8, marginBottom: 10 },
+  btn: { backgroundColor: '#1a5276', padding: 12, borderRadius: 8, alignItems: 'center' },
+  btnText: { color: '#fff', fontWeight: 'bold' },
+  listHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20 },
+  sectionTitle: { color: '#fff', fontWeight: 'bold' },
+  card: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
+  cardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  cardNome: { fontWeight: 'bold' },
+  cardQtd: { color: '#666', fontSize: 12 },
+  badge: { padding: 4, borderRadius: 4 },
+  badgeText: { fontSize: 10, fontWeight: 'bold' },
+  empty: { color: '#aed6f1', textAlign: 'center', marginTop: 40 }
+});
