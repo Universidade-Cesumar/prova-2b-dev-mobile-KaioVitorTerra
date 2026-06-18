@@ -4,7 +4,7 @@ import {
   TouchableOpacity, KeyboardAvoidingView, Platform, Alert,
   ActivityIndicator, FlatList
 } from 'react-native';
-import { validarRetirada } from './utils';
+import { validarRetirada } from './src/utils/validacoes';
 
 const API_URL = 'https://6a2b3540b687a7d5cbc4f2f8.mockapi.io/api/v1/Materias';
 
