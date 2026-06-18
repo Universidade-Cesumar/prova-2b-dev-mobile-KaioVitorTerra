@@ -91,15 +91,18 @@ export default function App() {
   };
 
   const excluirMaterial = async (item) => {
-    setProcessando(prev => ({ ...prev, [item.id]: true }));
-    try {
-      await fetch(`${API_URL}/${item.id}`, { method: 'DELETE' });
-      setMateriais(prev => prev.filter(m => m.id !== item.id));
-    } catch (e) {
-      Alert.alert('Erro', 'Falha ao excluir o material.');
-      setProcessando(prev => ({ ...prev, [item.id]: false }));
+  setProcessando(prev => ({ ...prev, [item.id]: true }));
+  try {
+    const response = await fetch(`${API_URL}/${item.id}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) {
+      throw new Error('Falha ao excluir');
     }
-  };
+    setMateriais(prev => prev.filter(m => m.id !== item.id));
+  } catch (e) {
+    Alert.alert('Erro', 'Falha ao excluir o material.');
+    setProcessando(prev => ({ ...prev, [item.id]: false }));
+  }
+};
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
