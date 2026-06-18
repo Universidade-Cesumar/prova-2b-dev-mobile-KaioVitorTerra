@@ -189,7 +189,7 @@ export default function App() {
           <FlatList
             testID="lista-materiais"
             data={materiais}
-            keyExtractor={item => item.id.toString()}
+            keyExtractor={(item, index) => item?.id?.toString() ?? index.toString()}
             renderItem={renderItem}
             contentContainerStyle={{ padding: 16 }}
             ListEmptyComponent={<Text style={styles.empty}>Nenhum material encontrado.</Text>}
