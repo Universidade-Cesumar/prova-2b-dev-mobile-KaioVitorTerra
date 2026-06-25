@@ -1,4 +1,4 @@
-function validarRetirada(estoqueAtual, quantidadeRetirada) {
+export function validarRetirada(estoqueAtual, quantidadeRetirada) {
   if (typeof estoqueAtual !== 'number' || typeof quantidadeRetirada !== 'number') {
     return false;
   }
@@ -13,5 +13,3 @@ function validarRetirada(estoqueAtual, quantidadeRetirada) {
   }
   return true;
 }
-
-module.exports = { validarRetirada };
