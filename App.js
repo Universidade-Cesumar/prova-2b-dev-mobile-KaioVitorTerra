@@ -4,7 +4,7 @@ import {
   TouchableOpacity, KeyboardAvoidingView, Platform, Alert,
   ActivityIndicator, FlatList
 } from 'react-native';
-import { validarRetirada } from './src/utils/validacoes';
+import { validarRetirada } from './utils';
 
 const API_URL = 'https://6a2b3540b687a7d5cbc4f2f8.mockapi.io/api/v1/Materias';
 
@@ -100,6 +100,7 @@ export default function App() {
     setMateriais(prev => prev.filter(m => m.id !== item.id));
   } catch (e) {
     Alert.alert('Erro', 'Falha ao excluir o material.');
+  } finally {
     setProcessando(prev => ({ ...prev, [item.id]: false }));
   }
 };
