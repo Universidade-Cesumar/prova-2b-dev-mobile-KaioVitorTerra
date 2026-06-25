@@ -21,8 +21,17 @@ export default function App() {
     try {
       const response = await fetch(API_URL);
       const data = await response.json();
-      const materiaisArray = Array.isArray(data) ? data : [];
-      setMateriais(materiaisArray);
+      
+      const materiaisFormatados = Array.isArray(data) 
+        ? data.map(item => ({
+            id: item.id,
+            nome: item.Nome || item.nome || 'Sem nome',
+            quantidade: item.Quantidade || item.quantidade || 0,
+            createdAt: item.createdAt
+          }))
+        : [];
+      
+      setMateriais(materiaisFormatados);
     } catch (e) {
       Alert.alert('Erro', 'Falha ao carregar dados.');
       setMateriais([]);
@@ -44,28 +53,40 @@ export default function App() {
 
     setLoading(prev => ({ ...prev, add: true }));
     try {
+      // Envia com os campos exatos que o MockAPI espera: Nome e Quantidade (com letra maiúscula)
+      const novoMaterial = {
+        Nome: nome.trim(),
+        Quantidade: Number(quantidade)
+      };
+
       const response = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: nome.trim(),
-          quantidade: Number(quantidade)
-        }),
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(novoMaterial),
       });
 
-      const data = await response.json();
-
-      if (Array.isArray(data)) {
-        setMateriais(data);
-      } else if (data && typeof data === 'object') {
-        setMateriais(prev => [data, ...prev]);
-      } else {
-        await fetchMateriais();
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
       }
 
+      const data = await response.json();
+      
+      const materialFormatado = {
+        id: data.id,
+        nome: data.Nome || data.nome || 'Sem nome',
+        quantidade: data.Quantidade || data.quantidade || 0,
+        createdAt: data.createdAt
+      };
+      
+      setMateriais(prev => [materialFormatado, ...prev]);
       setForm({ nome: '', quantidade: '' });
+      Alert.alert('Sucesso', 'Material cadastrado com sucesso!');
+
     } catch (e) {
-      Alert.alert('Erro', 'Falha ao cadastrar.');
+      console.error('Erro ao cadastrar:', e);
+      Alert.alert('Erro', 'Falha ao cadastrar o material. Tente novamente.');
     } finally {
       setLoading(prev => ({ ...prev, add: false }));
     }
@@ -101,16 +122,36 @@ export default function App() {
 
     setProcessando(prev => ({ ...prev, [item.id]: true }));
     try {
+      // Envia com os campos que o MockAPI espera: Nome e Quantidade
+      const itemAtualizado = {
+        Nome: item.nome,
+        Quantidade: novoEstoque
+      };
+
       const response = await fetch(`${API_URL}/${item.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...item, quantidade: novoEstoque }),
+        body: JSON.stringify(itemAtualizado),
       });
 
-      const atualizado = await response.json();
-      setMateriais(prev => prev.map(m => (m.id === item.id ? atualizado : m)));
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar');
+      }
+
+      const data = await response.json();
+      
+      const itemFormatado = {
+        id: data.id,
+        nome: data.Nome || data.nome || 'Sem nome',
+        quantidade: data.Quantidade || data.quantidade || 0,
+        createdAt: data.createdAt
+      };
+      
+      setMateriais(prev => prev.map(m => (m.id === item.id ? itemFormatado : m)));
       setRetiradas(prev => ({ ...prev, [item.id]: '' }));
+      Alert.alert('Sucesso', `Retirada de ${quantidadeRetirada} unidade(s) realizada!`);
     } catch (e) {
+      console.error('Erro ao baixar estoque:', e);
       Alert.alert('Erro', 'Falha ao atualizar o estoque.');
     } finally {
       setProcessando(prev => ({ ...prev, [item.id]: false }));
@@ -138,6 +179,7 @@ export default function App() {
               }
 
               setMateriais(prev => prev.filter(m => m.id !== item.id));
+              Alert.alert('Sucesso', 'Material excluído com sucesso!');
             } catch (e) {
               Alert.alert('Erro', 'Falha ao excluir o material.');
             } finally {
@@ -151,8 +193,8 @@ export default function App() {
 
   const materiaisFiltrados = Array.isArray(materiais)
     ? materiais.filter(m =>
-      m && m.nome && m.nome.toLowerCase().includes(busca.toLowerCase())
-    )
+        m && m.nome && m.nome.toLowerCase().includes(busca.toLowerCase())
+      )
     : [];
 
   const renderItem = ({ item }) => {
@@ -172,6 +214,9 @@ export default function App() {
           <View style={{ flex: 1 }}>
             <Text style={styles.cardNome}>{item.nome}</Text>
             <Text style={styles.cardQtd}>Qtd: {item.quantidade}</Text>
+            {item.createdAt && (
+              <Text style={styles.cardData}>Criado em: {new Date(item.createdAt).toLocaleDateString()}</Text>
+            )}
           </View>
           <View style={[styles.badge, { backgroundColor: item.quantidade < 10 ? '#fdecea' : '#eafaf1' }]}>
             <Text style={[styles.badgeText, { color: item.quantidade < 10 ? '#c0392b' : '#1e8449' }]}>
@@ -315,6 +360,7 @@ const styles = StyleSheet.create({
   cardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   cardNome: { fontWeight: 'bold' },
   cardQtd: { color: '#666', fontSize: 12 },
+  cardData: { color: '#999', fontSize: 10 },
   badge: { padding: 4, borderRadius: 4 },
   badgeText: { fontSize: 10, fontWeight: 'bold' },
   empty: { color: '#aed6f1', textAlign: 'center', marginTop: 40 },
