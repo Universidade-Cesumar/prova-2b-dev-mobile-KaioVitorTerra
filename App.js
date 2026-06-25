@@ -28,11 +28,7 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-  if (process.env.NODE_ENV !== 'test') {
-    fetchMateriais();
-  }
-}, []);
+  useEffect(() => { fetchMateriais(); }, []);
 
   const cadastrar = async () => {
     const { nome, quantidade } = form;
