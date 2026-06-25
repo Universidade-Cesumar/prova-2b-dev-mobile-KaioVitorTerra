@@ -41,7 +41,8 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome: nome.trim(), quantidade: Number(quantidade) }),
       });
-      const novo = await response.json();
+      const data = await response.json();
+      setMateriais(Array.isArray(data) ? data : []);
       setMateriais([novo, ...materiais]);
       setForm({ nome: '', quantidade: '' });
     } catch (e) {
