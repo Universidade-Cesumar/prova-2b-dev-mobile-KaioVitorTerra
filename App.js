@@ -44,53 +44,67 @@ export default function App() {
     fetchMateriais();
   }, []);
 
-  const cadastrar = async () => {
-    const { nome, quantidade } = form;
-    if (!nome.trim() || !quantidade.trim()) {
-      Alert.alert('Atenção', 'Preencha todos os campos.');
-      return;
-    }
+const cadastrar = async () => {
+  const { nome, quantidade } = form;
+  
+  if (!nome.trim() || !quantidade.trim()) {
+    Alert.alert('Atenção', 'Preencha todos os campos.');
+    return;
+  }
 
-    setLoading(prev => ({ ...prev, add: true }));
-    try {
-      // Envia com os campos exatos que o MockAPI espera: Nome e Quantidade (com letra maiúscula)
-      const novoMaterial = {
-        Nome: nome.trim(),
-        Quantidade: Number(quantidade)
-      };
+  setLoading(prev => ({ ...prev, add: true }));
+  try {
+    // Testar diferentes formatos
+    const formatos = [
+      { Nome: nome.trim(), Quantidade: Number(quantidade) },
+      { nome: nome.trim(), quantidade: Number(quantidade) },
+      { name: nome.trim(), quantity: Number(quantidade) },
+      { name: nome.trim(), qty: Number(quantidade) }
+    ];
 
+    // Tenta cada formato
+    for (const formato of formatos) {
+      console.log('Testando formato:', formato);
+      
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(novoMaterial),
+        body: JSON.stringify(formato),
       });
 
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+      console.log('Status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Sucesso com formato:', formato);
+        console.log('Resposta:', data);
+        
+        const materialFormatado = {
+          id: data.id || Date.now().toString(),
+          nome: data.Nome || data.nome || data.name || nome.trim(),
+          quantidade: data.Quantidade || data.quantidade || data.quantity || data.qty || Number(quantidade),
+          createdAt: data.createdAt || new Date().toISOString()
+        };
+        
+        setMateriais(prev => [materialFormatado, ...prev]);
+        setForm({ nome: '', quantidade: '' });
+        Alert.alert('Sucesso', 'Material cadastrado com sucesso!');
+        return;
       }
-
-      const data = await response.json();
-      
-      const materialFormatado = {
-        id: data.id,
-        nome: data.Nome || data.nome || 'Sem nome',
-        quantidade: data.Quantidade || data.quantidade || 0,
-        createdAt: data.createdAt
-      };
-      
-      setMateriais(prev => [materialFormatado, ...prev]);
-      setForm({ nome: '', quantidade: '' });
-      Alert.alert('Sucesso', 'Material cadastrado com sucesso!');
-
-    } catch (e) {
-      console.error('Erro ao cadastrar:', e);
-      Alert.alert('Erro', 'Falha ao cadastrar o material. Tente novamente.');
-    } finally {
-      setLoading(prev => ({ ...prev, add: false }));
     }
-  };
+
+    // Se chegou aqui, nenhum formato funcionou
+    Alert.alert('Erro', 'Não foi possível cadastrar. Verifique a API.');
+
+  } catch (e) {
+    console.error('Erro ao cadastrar:', e);
+    Alert.alert('Erro', 'Falha ao cadastrar o material. Tente novamente.');
+  } finally {
+    setLoading(prev => ({ ...prev, add: false }));
+  }
+};
 
   const handleRetiradaChange = (id, valor) => {
     setRetiradas(prev => ({ ...prev, [id]: valor }));
@@ -321,23 +335,23 @@ export default function App() {
           </Text>
         </View>
 
-        {loading.list ? (
-          <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />
-        ) : (
-          <FlatList
-            testID="lista-materials"
-            data={materiaisFiltrados}
-            keyExtractor={(item, index) => {
-              if (item && item.id) {
-                return item.id.toString();
-              }
-              return index.toString();
-            }}
-            renderItem={renderItem}
-            contentContainerStyle={{ padding: 16 }}
-            ListEmptyComponent={<Text style={styles.empty}>Nenhum material encontrado.</Text>}
-          />
-        )}
+        <FlatList
+          testID="lista-materials"
+          data={materiaisFiltrados}
+          keyExtractor={(item, index) => {
+            if (item && item.id) {
+              return item.id.toString();
+            }
+            return index.toString();
+          }}
+          renderItem={renderItem}
+          contentContainerStyle={{ padding: 16 }}
+          ListEmptyComponent={
+            loading.list
+              ? <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />
+              : <Text style={styles.empty}>Nenhum material encontrado.</Text>
+          }
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
