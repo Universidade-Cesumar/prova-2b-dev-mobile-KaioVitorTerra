@@ -26,7 +26,7 @@ export default function App() {
         ? data.map(item => ({
             id: item.id,
             nome: item.Nome || item.nome || 'Sem nome',
-            quantidade: item.Quantidade || item.quantidade || 0,
+            quantidade: Number(item.Quantidade ?? item.quantidade ?? 0) || 0,
             createdAt: item.createdAt
           }))
         : [];
@@ -54,9 +54,14 @@ export default function App() {
 
     setLoading(prev => ({ ...prev, add: true }));
     try {
+      const quantidadeNumero = Number(quantidade);
+      if (!Number.isFinite(quantidadeNumero) || quantidadeNumero <= 0) {
+        throw new Error('Quantidade inválida');
+      }
+
       const novoMaterial = {
         Nome: nome.trim(),
-        Quantidade: Number(quantidade)
+        Quantidade: quantidadeNumero
       };
 
       const response = await fetch(API_URL, {
@@ -67,18 +72,17 @@ export default function App() {
         body: JSON.stringify(novoMaterial),
       });
 
-      const responseText = await response.text();
-
       if (!response.ok) {
+        const responseText = await response.text();
         throw new Error(`Erro ${response.status}: ${responseText}`);
       }
 
-      const data = JSON.parse(responseText);
+      const data = await response.json();
       
       const materialFormatado = {
         id: data.id,
         nome: data.nome || data.Nome || nome.trim(),
-        quantidade: data.quantidade || data.Quantidade || Number(quantidade),
+        quantidade: Number(data.quantidade ?? data.Quantidade ?? quantidadeNumero) || quantidadeNumero,
         createdAt: data.createdAt || new Date().toISOString()
       };
       
@@ -115,25 +119,36 @@ export default function App() {
 
     const valorDigitado = retiradas[item.id];
     const quantidadeRetirada = Number(valorDigitado);
+    const estoqueAtual = Number(item.quantidade ?? 0);
 
-    if (!valorDigitado || isNaN(quantidadeRetirada) || quantidadeRetirada <= 0) {
+    if (!valorDigitado || !Number.isFinite(quantidadeRetirada) || quantidadeRetirada <= 0) {
       Alert.alert('Atenção', 'Informe uma quantidade válida para retirada.');
       return;
     }
 
-    if (!validarRetirada(item.quantidade, quantidadeRetirada)) {
+    if (!validarRetirada(estoqueAtual, quantidadeRetirada)) {
       Alert.alert(
         'Operação inválida',
-        `Não é possível retirar ${quantidadeRetirada} unidade(s). Estoque atual: ${item.quantidade}.`
+        `Não é possível retirar ${quantidadeRetirada} unidade(s). Estoque atual: ${estoqueAtual}.`
       );
       return;
     }
 
-    const novoEstoque = item.quantidade - quantidadeRetirada;
+    const novoEstoque = estoqueAtual - quantidadeRetirada;
+    const isLocal = item.local === true;
 
     setProcessando(prev => ({ ...prev, [item.id]: true }));
 
     try {
+      if (isLocal) {
+        setMateriais(prev => prev.map(m => (
+          m.id === item.id ? { ...m, quantidade: novoEstoque } : m
+        )));
+        setRetiradas(prev => ({ ...prev, [item.id]: '' }));
+        Alert.alert('Sucesso', `Retirada de ${quantidadeRetirada} unidade(s) realizada localmente!`);
+        return;
+      }
+
       const itemAtualizado = {
         Nome: item.nome,
         Quantidade: novoEstoque
@@ -154,7 +169,7 @@ export default function App() {
       const itemFormatado = {
         id: data.id,
         nome: data.Nome || data.nome || 'Sem nome',
-        quantidade: data.Quantidade || data.quantidade || 0,
+        quantidade: Number(data.Quantidade ?? data.quantidade ?? novoEstoque) || novoEstoque,
         createdAt: data.createdAt
       };
       
@@ -170,33 +185,49 @@ export default function App() {
   };
 
   const excluirMaterial = async (item) => {
+    const executarExclusao = async () => {
+      setProcessando(prev => ({ ...prev, [item.id]: true }));
+      try {
+        if (item.local) {
+          setMateriais(prev => prev.filter(m => String(m.id) !== String(item.id)));
+          Alert.alert('Sucesso', 'Material excluído com sucesso!');
+          return;
+        }
+
+        const response = await fetch(`${API_URL}/${item.id}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok && response.status !== 404) {
+          throw new Error('Falha ao excluir');
+        }
+
+        setMateriais(prev => prev.filter(m => String(m.id) !== String(item.id)));
+        Alert.alert('Sucesso', 'Material excluído com sucesso!');
+      } catch (e) {
+        console.error('Erro ao excluir:', e);
+        setMateriais(prev => prev.filter(m => String(m.id) !== String(item.id)));
+        Alert.alert('Atenção', 'Não foi possível excluir no servidor, mas o item foi removido localmente.');
+      } finally {
+        setProcessando(prev => ({ ...prev, [item.id]: false }));
+      }
+    };
+
+    const mensagem = `Tem certeza que deseja excluir o material "${item.nome}"?`;
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      if (window.confirm(mensagem)) executarExclusao();
+      return;
+    }
+
     Alert.alert(
       'Confirmar exclusão',
-      `Tem certeza que deseja excluir o material "${item.nome}"?`,
+      mensagem,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Excluir',
           style: 'destructive',
-          onPress: async () => {
-            setProcessando(prev => ({ ...prev, [item.id]: true }));
-            try {
-              const response = await fetch(`${API_URL}/${item.id}`, {
-                method: 'DELETE'
-              });
-
-              if (!response.ok && response.status !== 404) {
-                throw new Error('Falha ao excluir');
-              }
-
-              setMateriais(prev => prev.filter(m => m.id !== item.id));
-              Alert.alert('Sucesso', 'Material excluído com sucesso!');
-            } catch (e) {
-              Alert.alert('Erro', 'Falha ao excluir o material.');
-            } finally {
-              setProcessando(prev => ({ ...prev, [item.id]: false }));
-            }
-          }
+          onPress: executarExclusao
         }
       ]
     );
@@ -336,7 +367,7 @@ export default function App() {
         </View>
 
         <FlatList
-          testID="lista-materials"
+          testID="lista-materiais"
           data={materiaisFiltrados}
           keyExtractor={(item, index) => {
             if (item && item.id) {
@@ -379,8 +410,8 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: 'bold' },
   empty: { color: '#aed6f1', textAlign: 'center', marginTop: 40 },
   localTag: { color: '#c0392b', fontSize: 12, fontWeight: 'bold', marginBottom: 4 },
-  cardActions: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
-  inputRetirada: { flex: 1, borderWidth: 1, borderColor: '#dce3ea', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6, fontSize: 13 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+  inputRetirada: { flex: 1, borderWidth: 1, borderColor: '#dce3ea', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6, fontSize: 13, marginRight: 8 },
   btnSmall: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
   btnBaixar: { backgroundColor: '#1a5276' },
   btnExcluir: { backgroundColor: '#c0392b' },
