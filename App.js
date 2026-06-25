@@ -13,7 +13,7 @@ export default function App() {
   const [form, setForm] = useState({ nome: '', quantidade: '' });
   const [loading, setLoading] = useState({ list: false, add: false });
   const [retiradas, setRetiradas] = useState({});
-  const [processando, setProcessando] = useState({})
+  const [processando, setProcessando] = useState({});
   const [busca, setBusca] = useState('');
 
   const fetchMateriais = async () => {
@@ -88,43 +88,44 @@ export default function App() {
       Alert.alert('Erro', 'Falha ao atualizar o estoque.');
     } finally {
       setProcessando(prev => ({ ...prev, [item.id]: false }));
-      
     }
   };
 
   const excluirMaterial = async (item) => {
-  setProcessando(prev => ({ ...prev, [item.id]: true }));
-  try {
-    const response = await fetch(`${API_URL}/${item.id}`, { method: 'DELETE' });
-    if (!response.ok && response.status !== 404) {
-      throw new Error('Falha ao excluir');
+    setProcessando(prev => ({ ...prev, [item.id]: true }));
+    try {
+      const response = await fetch(`${API_URL}/${item.id}`, { method: 'DELETE' });
+      if (!response.ok && response.status !== 404) {
+        throw new Error('Falha ao excluir');
+      }
+      setMateriais(prev => prev.filter(m => m.id !== item.id));
+    } catch (e) {
+      Alert.alert('Erro', 'Falha ao excluir o material.');
+    } finally {
+      setProcessando(prev => ({ ...prev, [item.id]: false }));
     }
-    setMateriais(prev => prev.filter(m => m.id !== item.id));
-  } catch (e) {
-    Alert.alert('Erro', 'Falha ao excluir o material.');
-  } finally {
-    setProcessando(prev => ({ ...prev, [item.id]: false }));
-  }
+  };
+
   const materiaisFiltrados = materiais.filter(m =>
-  m.nome.toLowerCase().includes(busca.toLowerCase())
-)
-};
+    m.nome.toLowerCase().includes(busca.toLowerCase())
+  );
 
   const renderItem = ({ item }) => (
     <View
-  style={[styles.card, item.quantidade < 10 && styles.cardCritico]}
-  accessibilityLabel={item.quantidade < 10 ? 'estoque-critico' : undefined}
->
+      style={[styles.card, item.quantidade < 10 && styles.cardCritico]}
+      accessibilityLabel={item.quantidade < 10 ? 'estoque-critico' : undefined}
+    >
       <View style={styles.cardTopRow}>
         <View style={styles.cardIcon}><Text>📦</Text></View>
         <View style={{ flex: 1 }}>
-         <View style={[styles.badge, { backgroundColor: item.quantidade < 10 ? '#fdecea' : '#eafaf1' }]}>
-  <Text style={[styles.badgeText, { color: item.quantidade < 10 ? '#c0392b' : '#1e8449' }]}>
-    {item.quantidade < 10 ? 'CRÍTICO' : 'OK'}
-  </Text>
-</View>
+          <Text style={styles.cardNome}>{item.nome}</Text>
+          <Text style={styles.cardQtd}>Qtd: {item.quantidade}</Text>
         </View>
-       
+        <View style={[styles.badge, { backgroundColor: item.quantidade < 10 ? '#fdecea' : '#eafaf1' }]}>
+          <Text style={[styles.badgeText, { color: item.quantidade < 10 ? '#c0392b' : '#1e8449' }]}>
+            {item.quantidade < 10 ? 'CRÍTICO' : 'OK'}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.cardActions}>
@@ -169,12 +170,14 @@ export default function App() {
 
         <View style={styles.form}>
           <TextInput
+            testID="input-nome"
             style={styles.input}
             placeholder="Nome"
             value={form.nome}
             onChangeText={t => setForm({ ...form, nome: t })}
           />
           <TextInput
+            testID="input-quantidade"
             style={styles.input}
             placeholder="Qtd"
             value={form.quantidade}
@@ -192,19 +195,21 @@ export default function App() {
             <Text style={{ color: '#aed6f1' }}>↻ Atualizar</Text>
           </TouchableOpacity>
         </View>
+
         <View style={styles.searchContainer}>
-  <TextInput
-    testID="input-busca"
-    style={styles.inputBusca}
-    placeholder="🔍 Pesquisar material..."
-    placeholderTextColor="#aaa"
-    value={busca}
-    onChangeText={setBusca}
-  />
-  <Text testID="total-itens" style={styles.totalItens}>
-    {materiaisFiltrados.length} {materiaisFiltrados.length === 1 ? 'item' : 'itens'}
-  </Text>
-</View>
+          <TextInput
+            testID="input-busca"
+            style={styles.inputBusca}
+            placeholder="🔍 Pesquisar material..."
+            placeholderTextColor="#aaa"
+            value={busca}
+            onChangeText={setBusca}
+          />
+          <Text testID="total-itens" style={styles.totalItens}>
+            {materiaisFiltrados.length} {materiaisFiltrados.length === 1 ? 'item' : 'itens'}
+          </Text>
+        </View>
+
         {loading.list ? (
           <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />
         ) : (
@@ -234,6 +239,7 @@ const styles = StyleSheet.create({
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20 },
   sectionTitle: { color: '#fff', fontWeight: 'bold' },
   card: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 10 },
+  cardCritico: { backgroundColor: '#fdecea', borderWidth: 1, borderColor: '#e74c3c' },
   cardTopRow: { flexDirection: 'row', alignItems: 'center' },
   cardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   cardNome: { fontWeight: 'bold' },
@@ -250,5 +256,4 @@ const styles = StyleSheet.create({
   searchContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 10, marginBottom: 4, gap: 8 },
   inputBusca: { flex: 1, backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14 },
   totalItens: { color: '#aed6f1', fontSize: 13, fontWeight: 'bold' },
-  cardCritico: { backgroundColor: '#fdecea', borderWidth: 1, borderColor: '#e74c3c' },
 });
