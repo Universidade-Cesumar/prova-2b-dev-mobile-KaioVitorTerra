@@ -218,7 +218,7 @@ export default function App() {
           <ActivityIndicator size="large" color="#fff" style={{ marginTop: 20 }} />
         ) : (
           <FlatList
-            testID="lista-materiaLs"
+            testID="lista-materials"
             data={materiaisFiltrados}
             keyExtractor={(item, index) => item?.id?.toString() ?? index.toString()}
             renderItem={renderItem}
