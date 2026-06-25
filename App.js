@@ -8,7 +8,7 @@ import { validarRetirada } from './utils';
 
 const API_URL = 'https://6a2b3540b687a7d5cbc4f2f8.mockapi.io/api/v1/Materias';
 
-export default function App() {
+export default function App( ) {
   const [materiais, setMateriais] = useState([]);
   const [form, setForm] = useState({ nome: '', quantidade: '' });
   const [loading, setLoading] = useState({ list: false, add: false });
@@ -44,118 +44,55 @@ export default function App() {
     fetchMateriais();
   }, []);
 
-const cadastrar = async () => {
-  const { nome, quantidade } = form;
-  
-  if (!nome.trim() || !quantidade.trim()) {
-    Alert.alert('Atenção', 'Preencha todos os campos.');
-    return;
-  }
-
-  setLoading(prev => ({ ...prev, add: true }));
-  try {
-    // Formato que geralmente funciona no MockAPI
-    const novoMaterial = {
-      nome: nome.trim(),
-      quantidade: Number(quantidade)
-    };
-
-    console.log('📤 Enviando:', JSON.stringify(novoMaterial, null, 2));
-
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(novoMaterial),
-    });
-
-    console.log('📊 Status:', response.status);
+  const cadastrar = async () => {
+    const { nome, quantidade } = form;
     
-    const responseText = await response.text();
-    console.log('📥 Resposta bruta:', responseText);
-
-    if (!response.ok) {
-      throw new Error(`Erro ${response.status}: ${responseText}`);
+    if (!nome.trim() || !quantidade.trim()) {
+      Alert.alert('Atenção', 'Preencha todos os campos.');
+      return;
     }
 
-    const data = JSON.parse(responseText);
-    console.log('✅ Dados criados:', data);
-    
-    // Formata o material para o padrão do app
-    const materialFormatado = {
-      id: data.id,
-      nome: data.nome || data.Nome || nome.trim(),
-      quantidade: data.quantidade || data.Quantidade || Number(quantidade),
-      createdAt: data.createdAt || new Date().toISOString()
-    };
-    
-    setMateriais(prev => [materialFormatado, ...prev]);
-    setForm({ nome: '', quantidade: '' });
-    Alert.alert('Sucesso', 'Material cadastrado com sucesso!');
+    setLoading(prev => ({ ...prev, add: true }));
+    try {
+      const novoMaterial = {
+        Nome: nome.trim(),
+        Quantidade: Number(quantidade)
+      };
 
-  } catch (e) {
-    console.error('❌ Erro:', e);
-    Alert.alert('Erro', `Falha ao cadastrar: ${e.message}`);
-  } finally {
-    setLoading(prev => ({ ...prev, add: false }));
-  }
-};
-
-  setLoading(prev => ({ ...prev, add: true }));
-  try {
-    // Testar diferentes formatos
-    const formatos = [
-      { Nome: nome.trim(), Quantidade: Number(quantidade) },
-      { nome: nome.trim(), quantidade: Number(quantidade) },
-      { name: nome.trim(), quantity: Number(quantidade) },
-      { name: nome.trim(), qty: Number(quantidade) }
-    ];
-
-    // Tenta cada formato
-    for (const formato of formatos) {
-      console.log('Testando formato:', formato);
-      
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formato),
+        body: JSON.stringify(novoMaterial),
       });
 
-      console.log('Status:', response.status);
+      const responseText = await response.text();
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Sucesso com formato:', formato);
-        console.log('Resposta:', data);
-        
-        const materialFormatado = {
-          id: data.id || Date.now().toString(),
-          nome: data.Nome || data.nome || data.name || nome.trim(),
-          quantidade: data.Quantidade || data.quantidade || data.quantity || data.qty || Number(quantidade),
-          createdAt: data.createdAt || new Date().toISOString()
-        };
-        
-        setMateriais(prev => [materialFormatado, ...prev]);
-        setForm({ nome: '', quantidade: '' });
-        Alert.alert('Sucesso', 'Material cadastrado com sucesso!');
-        return;
+      if (!response.ok) {
+        throw new Error(`Erro ${response.status}: ${responseText}`);
       }
+
+      const data = JSON.parse(responseText);
+      
+      const materialFormatado = {
+        id: data.id,
+        nome: data.nome || data.Nome || nome.trim(),
+        quantidade: data.quantidade || data.Quantidade || Number(quantidade),
+        createdAt: data.createdAt || new Date().toISOString()
+      };
+      
+      setMateriais(prev => [materialFormatado, ...prev]);
+      setForm({ nome: '', quantidade: '' });
+      Alert.alert('Sucesso', 'Material cadastrado com sucesso!');
+
+    } catch (e) {
+      console.error('Erro ao cadastrar:', e);
+      Alert.alert('Erro', 'Falha ao cadastrar o material.');
+    } finally {
+      setLoading(prev => ({ ...prev, add: false }));
     }
-
-    // Se chegou aqui, nenhum formato funcionou
-    Alert.alert('Erro', 'Não foi possível cadastrar. Verifique a API.');
-
-  } catch (e) {
-    console.error('Erro ao cadastrar:', e);
-    Alert.alert('Erro', 'Falha ao cadastrar o material. Tente novamente.');
-  } finally {
-    setLoading(prev => ({ ...prev, add: false }));
-  }
-};
+  };
 
   const handleRetiradaChange = (id, valor) => {
     setRetiradas(prev => ({ ...prev, [id]: valor }));
@@ -186,8 +123,8 @@ const cadastrar = async () => {
     const novoEstoque = item.quantidade - quantidadeRetirada;
 
     setProcessando(prev => ({ ...prev, [item.id]: true }));
+
     try {
-      // Envia com os campos que o MockAPI espera: Nome e Quantidade
       const itemAtualizado = {
         Nome: item.nome,
         Quantidade: novoEstoque
@@ -406,7 +343,7 @@ const cadastrar = async () => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1a5276' },
@@ -439,3 +376,4 @@ const styles = StyleSheet.create({
   inputBusca: { flex: 1, backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14 },
   totalItens: { color: '#aed6f1', fontSize: 13, fontWeight: 'bold' },
 });
+
