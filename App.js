@@ -6,9 +6,9 @@ import {
 } from 'react-native';
 import { validarRetirada } from './utils';
 
-const API_URL = 'https://6a2b3540b687a7d5cbc4f2f8.mockapi.io/api/v1/Materias';
+const API_URL = 'https://6a2b3540b687a7d5cbc4f2f8.mockapi.io/Materias';
 
-export default function App( ) {
+export default function App() {
   const [materiais, setMateriais] = useState([]);
   const [form, setForm] = useState({ nome: '', quantidade: '' });
   const [loading, setLoading] = useState({ list: false, add: false });
@@ -88,7 +88,16 @@ export default function App( ) {
 
     } catch (e) {
       console.error('Erro ao cadastrar:', e);
-      Alert.alert('Erro', 'Falha ao cadastrar o material.');
+      const materialFormatado = {
+        id: Date.now().toString(),
+        nome: nome.trim(),
+        quantidade: Number(quantidade),
+        createdAt: new Date().toISOString(),
+        local: true
+      };
+      setMateriais(prev => [materialFormatado, ...prev]);
+      setForm({ nome: '', quantidade: '' });
+      Alert.alert('Atenção', 'Não foi possível salvar no servidor. Material adicionado localmente.');
     } finally {
       setLoading(prev => ({ ...prev, add: false }));
     }
@@ -204,6 +213,8 @@ export default function App( ) {
       return null;
     }
 
+    const isLocal = item.local === true;
+
     return (
       <View
         style={[styles.card, item.quantidade < 10 && styles.cardCritico]}
@@ -215,6 +226,7 @@ export default function App( ) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardNome}>{item.nome}</Text>
+            {isLocal && <Text style={styles.localTag}>LOCAL (sem servidor)</Text>}
             <Text style={styles.cardQtd}>Qtd: {item.quantidade}</Text>
             {item.createdAt && (
               <Text style={styles.cardData}>Criado em: {new Date(item.createdAt).toLocaleDateString()}</Text>
@@ -366,6 +378,7 @@ const styles = StyleSheet.create({
   badge: { padding: 4, borderRadius: 4 },
   badgeText: { fontSize: 10, fontWeight: 'bold' },
   empty: { color: '#aed6f1', textAlign: 'center', marginTop: 40 },
+  localTag: { color: '#c0392b', fontSize: 12, fontWeight: 'bold', marginBottom: 4 },
   cardActions: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
   inputRetirada: { flex: 1, borderWidth: 1, borderColor: '#dce3ea', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6, fontSize: 13 },
   btnSmall: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
