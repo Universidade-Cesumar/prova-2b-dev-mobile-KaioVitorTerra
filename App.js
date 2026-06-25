@@ -54,6 +54,57 @@ const cadastrar = async () => {
 
   setLoading(prev => ({ ...prev, add: true }));
   try {
+    // Formato que geralmente funciona no MockAPI
+    const novoMaterial = {
+      nome: nome.trim(),
+      quantidade: Number(quantidade)
+    };
+
+    console.log('📤 Enviando:', JSON.stringify(novoMaterial, null, 2));
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(novoMaterial),
+    });
+
+    console.log('📊 Status:', response.status);
+    
+    const responseText = await response.text();
+    console.log('📥 Resposta bruta:', responseText);
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${responseText}`);
+    }
+
+    const data = JSON.parse(responseText);
+    console.log('✅ Dados criados:', data);
+    
+    // Formata o material para o padrão do app
+    const materialFormatado = {
+      id: data.id,
+      nome: data.nome || data.Nome || nome.trim(),
+      quantidade: data.quantidade || data.Quantidade || Number(quantidade),
+      createdAt: data.createdAt || new Date().toISOString()
+    };
+    
+    setMateriais(prev => [materialFormatado, ...prev]);
+    setForm({ nome: '', quantidade: '' });
+    Alert.alert('Sucesso', 'Material cadastrado com sucesso!');
+
+  } catch (e) {
+    console.error('❌ Erro:', e);
+    Alert.alert('Erro', `Falha ao cadastrar: ${e.message}`);
+  } finally {
+    setLoading(prev => ({ ...prev, add: false }));
+  }
+};
+
+  setLoading(prev => ({ ...prev, add: true }));
+  try {
     // Testar diferentes formatos
     const formatos = [
       { Nome: nome.trim(), Quantidade: Number(quantidade) },
@@ -355,7 +406,7 @@ const cadastrar = async () => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1a5276' },
