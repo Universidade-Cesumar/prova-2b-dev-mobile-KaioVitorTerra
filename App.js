@@ -20,30 +20,49 @@ export default function App() {
     setLoading(prev => ({ ...prev, list: true }));
     try {
       const response = await fetch(API_URL);
-      setMateriais(await response.json());
+      const data = await response.json();
+      const materiaisArray = Array.isArray(data) ? data : [];
+      setMateriais(materiaisArray);
     } catch (e) {
       Alert.alert('Erro', 'Falha ao carregar dados.');
+      setMateriais([]);
     } finally {
       setLoading(prev => ({ ...prev, list: false }));
     }
   };
 
-  useEffect(() => { fetchMateriais(); }, []);
+  useEffect(() => {
+    fetchMateriais();
+  }, []);
 
   const cadastrar = async () => {
     const { nome, quantidade } = form;
-    if (!nome.trim() || !quantidade.trim()) return Alert.alert('Atenção', 'Preencha todos os campos.');
+    if (!nome.trim() || !quantidade.trim()) {
+      Alert.alert('Atenção', 'Preencha todos os campos.');
+      return;
+    }
 
     setLoading(prev => ({ ...prev, add: true }));
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: nome.trim(), quantidade: Number(quantidade) }),
+        body: JSON.stringify({
+          nome: nome.trim(),
+          quantidade: Number(quantidade)
+        }),
       });
+
       const data = await response.json();
-      setMateriais(Array.isArray(data) ? data : []);
-      setMateriais([novo, ...materiais]);
+
+      if (Array.isArray(data)) {
+        setMateriais(data);
+      } else if (data && typeof data === 'object') {
+        setMateriais(prev => [data, ...prev]);
+      } else {
+        await fetchMateriais();
+      }
+
       setForm({ nome: '', quantidade: '' });
     } catch (e) {
       Alert.alert('Erro', 'Falha ao cadastrar.');
@@ -57,10 +76,15 @@ export default function App() {
   };
 
   const baixarEstoque = async (item) => {
+    if (!item || !item.id) {
+      Alert.alert('Erro', 'Item inválido.');
+      return;
+    }
+
     const valorDigitado = retiradas[item.id];
     const quantidadeRetirada = Number(valorDigitado);
 
-    if (!valorDigitado || isNaN(quantidadeRetirada)) {
+    if (!valorDigitado || isNaN(quantidadeRetirada) || quantidadeRetirada <= 0) {
       Alert.alert('Atenção', 'Informe uma quantidade válida para retirada.');
       return;
     }
@@ -82,6 +106,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...item, quantidade: novoEstoque }),
       });
+
       const atualizado = await response.json();
       setMateriais(prev => prev.map(m => (m.id === item.id ? atualizado : m)));
       setRetiradas(prev => ({ ...prev, [item.id]: '' }));
@@ -93,77 +118,108 @@ export default function App() {
   };
 
   const excluirMaterial = async (item) => {
-    setProcessando(prev => ({ ...prev, [item.id]: true }));
-    try {
-      const response = await fetch(`${API_URL}/${item.id}`, { method: 'DELETE' });
-      if (!response.ok && response.status !== 404) {
-        throw new Error('Falha ao excluir');
-      }
-      setMateriais(prev => prev.filter(m => m.id !== item.id));
-    } catch (e) {
-      Alert.alert('Erro', 'Falha ao excluir o material.');
-    } finally {
-      setProcessando(prev => ({ ...prev, [item.id]: false }));
-    }
+    Alert.alert(
+      'Confirmar exclusão',
+      `Tem certeza que deseja excluir o material "${item.nome}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            setProcessando(prev => ({ ...prev, [item.id]: true }));
+            try {
+              const response = await fetch(`${API_URL}/${item.id}`, {
+                method: 'DELETE'
+              });
+
+              if (!response.ok && response.status !== 404) {
+                throw new Error('Falha ao excluir');
+              }
+
+              setMateriais(prev => prev.filter(m => m.id !== item.id));
+            } catch (e) {
+              Alert.alert('Erro', 'Falha ao excluir o material.');
+            } finally {
+              setProcessando(prev => ({ ...prev, [item.id]: false }));
+            }
+          }
+        }
+      ]
+    );
   };
 
-  const materiaisFiltrados = materiais.filter(m =>
-    m.nome.toLowerCase().includes(busca.toLowerCase())
-  );
+  const materiaisFiltrados = Array.isArray(materiais)
+    ? materiais.filter(m =>
+      m && m.nome && m.nome.toLowerCase().includes(busca.toLowerCase())
+    )
+    : [];
 
-  const renderItem = ({ item }) => (
-    <View
-      style={[styles.card, item.quantidade < 10 && styles.cardCritico]}
-      accessibilityLabel={item.quantidade < 10 ? 'estoque-critico' : undefined}
-    >
-      <View style={styles.cardTopRow}>
-        <View style={styles.cardIcon}><Text>📦</Text></View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.cardNome}>{item.nome}</Text>
-          <Text style={styles.cardQtd}>Qtd: {item.quantidade}</Text>
+  const renderItem = ({ item }) => {
+    if (!item || !item.id) {
+      return null;
+    }
+
+    return (
+      <View
+        style={[styles.card, item.quantidade < 10 && styles.cardCritico]}
+        accessibilityLabel={item.quantidade < 10 ? 'estoque-critico' : 'estoque-normal'}
+      >
+        <View style={styles.cardTopRow}>
+          <View style={styles.cardIcon}>
+            <Text>📦</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardNome}>{item.nome}</Text>
+            <Text style={styles.cardQtd}>Qtd: {item.quantidade}</Text>
+          </View>
+          <View style={[styles.badge, { backgroundColor: item.quantidade < 10 ? '#fdecea' : '#eafaf1' }]}>
+            <Text style={[styles.badgeText, { color: item.quantidade < 10 ? '#c0392b' : '#1e8449' }]}>
+              {item.quantidade < 10 ? 'CRÍTICO' : 'OK'}
+            </Text>
+          </View>
         </View>
-        <View style={[styles.badge, { backgroundColor: item.quantidade < 10 ? '#fdecea' : '#eafaf1' }]}>
-          <Text style={[styles.badgeText, { color: item.quantidade < 10 ? '#c0392b' : '#1e8449' }]}>
-            {item.quantidade < 10 ? 'CRÍTICO' : 'OK'}
-          </Text>
+
+        <View style={styles.cardActions}>
+          <TextInput
+            testID="input-retirada"
+            style={styles.inputRetirada}
+            placeholder="Qtd a retirar"
+            keyboardType="numeric"
+            value={retiradas[item.id] || ''}
+            onChangeText={(t) => handleRetiradaChange(item.id, t)}
+            editable={!processando[item.id]}
+          />
+          <TouchableOpacity
+            testID="btn-baixar"
+            style={[styles.btnSmall, styles.btnBaixar]}
+            onPress={() => baixarEstoque(item)}
+            disabled={!!processando[item.id]}
+          >
+            {processando[item.id]
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={styles.btnSmallText}>Baixar</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="btn-excluir"
+            style={[styles.btnSmall, styles.btnExcluir]}
+            onPress={() => excluirMaterial(item)}
+            disabled={!!processando[item.id]}
+          >
+            <Text style={styles.btnSmallText}>Excluir</Text>
+          </TouchableOpacity>
         </View>
       </View>
-
-      <View style={styles.cardActions}>
-        <TextInput
-          testID="input-retirada"
-          style={styles.inputRetirada}
-          placeholder="Qtd a retirar"
-          keyboardType="numeric"
-          value={retiradas[item.id] || ''}
-          onChangeText={(t) => handleRetiradaChange(item.id, t)}
-        />
-        <TouchableOpacity
-          testID="btn-baixar"
-          style={[styles.btnSmall, styles.btnBaixar]}
-          onPress={() => baixarEstoque(item)}
-          disabled={!!processando[item.id]}
-        >
-          {processando[item.id]
-            ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={styles.btnSmallText}>Baixar</Text>}
-        </TouchableOpacity>
-        <TouchableOpacity
-          testID="btn-excluir"
-          style={[styles.btnSmall, styles.btnExcluir]}
-          onPress={() => excluirMaterial(item)}
-          disabled={!!processando[item.id]}
-        >
-          <Text style={styles.btnSmallText}>Excluir</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a5276" />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>🏥 Almoxarifado</Text>
           <Text style={styles.subtitle}>Controle de Insumos</Text>
@@ -173,25 +229,34 @@ export default function App() {
           <TextInput
             testID="input-nome"
             style={styles.input}
-            placeholder="Nome"
+            placeholder="Nome do material"
+            placeholderTextColor="#999"
             value={form.nome}
             onChangeText={t => setForm({ ...form, nome: t })}
           />
           <TextInput
             testID="input-quantidade"
             style={styles.input}
-            placeholder="Qtd"
+            placeholder="Quantidade"
+            placeholderTextColor="#999"
             value={form.quantidade}
             onChangeText={t => setForm({ ...form, quantidade: t })}
             keyboardType="numeric"
           />
-          <TouchableOpacity testID="btn-cadastrar" style={styles.btn} onPress={cadastrar} disabled={loading.add}>
-            {loading.add ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Cadastrar</Text>}
+          <TouchableOpacity
+            testID="btn-cadastrar"
+            style={styles.btn}
+            onPress={cadastrar}
+            disabled={loading.add}
+          >
+            {loading.add
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.btnText}>Cadastrar Material</Text>}
           </TouchableOpacity>
         </View>
 
         <View style={styles.listHeader}>
-          <Text style={styles.sectionTitle}>Inventário</Text>
+          <Text style={styles.sectionTitle}>📋 Inventário</Text>
           <TouchableOpacity onPress={fetchMateriais}>
             <Text style={{ color: '#aed6f1' }}>↻ Atualizar</Text>
           </TouchableOpacity>
@@ -217,7 +282,12 @@ export default function App() {
           <FlatList
             testID="lista-materials"
             data={materiaisFiltrados}
-            keyExtractor={(item, index) => item?.id?.toString() ?? index.toString()}
+            keyExtractor={(item, index) => {
+              if (item && item.id) {
+                return item.id.toString();
+              }
+              return index.toString();
+            }}
             renderItem={renderItem}
             contentContainerStyle={{ padding: 16 }}
             ListEmptyComponent={<Text style={styles.empty}>Nenhum material encontrado.</Text>}
